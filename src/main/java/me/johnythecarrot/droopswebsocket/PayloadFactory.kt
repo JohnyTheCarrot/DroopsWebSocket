@@ -12,11 +12,6 @@ import kotlin.experimental.xor
 val secWebSocketKeyBytes = createSecWebSocketKeyBytes()
 val secWebSocketKey = String(secWebSocketKeyBytes!!)
 
-fun createPayload(host: String, port: Int = 80): String
-{
-    return "E"
-}
-
 fun createSecWebSocketKeyBytes(): ByteArray? {
     val bytes = ByteArray(16)
     SecureRandom.getInstanceStrong().nextBytes(bytes)

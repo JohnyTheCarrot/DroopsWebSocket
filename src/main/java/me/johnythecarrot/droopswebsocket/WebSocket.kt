@@ -57,7 +57,7 @@ class WebSocket(
         else
             Socket(host, port)
         connectionState = ConnectionState.CONNECTING
-        val handshake = createOpeningHandshake(secure, host, path, protocolVersion = protocolVersion)
+        val handshake = createOpeningHandshake(host, path, protocolVersion = protocolVersion)
         printVerbose("Starting handshake..")
         client!!.getOutputStream().write(handshake.toByteArray())
         val input0 = DataInputStream(client!!.getInputStream())

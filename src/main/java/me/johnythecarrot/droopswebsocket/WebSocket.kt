@@ -97,32 +97,25 @@ class WebSocket(
 
             // if FIN, clear frameDataFragments
             if (fin) frameDataFragments = ByteArrayOutputStream()
-            println(byte0 and 0x0F)
             val opcode = Opcode.fromInt((byte0 and 0x0F).toInt())
-            val byte1 = input.read() and 0b01111111 // currently assuming a payload data size of 0 < x <= 125
+            val byte1 = input.read() and 0b01111111
             var payloadLength = 0.toLong()
             if (byte1 <= 125) payloadLength = byte1.toLong()
             else if (byte1 == 126) payloadLength = ((input.read() shl 8) or input.read()).toLong()
-            else if (byte1 == 127)
-            {
+            else if (byte1 == 127) {
                 val byteStream = ByteArrayOutputStream()
                 (0..7).forEach { _ ->
                     byteStream.write(input.read())
                 }
                 payloadLength = bytesToLong(byteStream.toByteArray())
             }
-            val byteStream = ByteArrayOutputStream()
-            // loop until value of byte1, to get all payload data
-            if (byte1 > 0)
-                // TODO: fix bottleneck on large payloads
-                (0 until payloadLength).forEach { _ ->
-                    val byte = input.read().toByte()
-                    byteStream.write(byte.toInt())
-                }
+            val payloadData = ByteArray(payloadLength.toInt())
+            if (byte1 > 0) {
+                input.readFully(payloadData, 0, payloadLength.toInt())
+            }
 
-            val payloadData = byteStream.toByteArray()
-            when (opcode)
-            {
+            printVerbose("Received ${opcode.name}.")
+            when (opcode) {
                 Opcode.TEXT_FRAME -> handleTextFrame(payloadData)
                 Opcode.CONNECTION_CLOSE -> handleCloseFrame(payloadData)
                 Opcode.CONTINUATION_FRAME -> handleContinuationFrame(fin, payloadData)
@@ -130,13 +123,11 @@ class WebSocket(
                 Opcode.PONG -> handlePongFrame(payloadData)
                 else -> throw closeAndReturnException(UnknownOpcodeException("Unknown opcode: ${byte0 and 0x0F}"), StatusCode.CLOSE_NORMAL)
             }
-        } catch (e: SocketException)
-        {
+        } catch (e: SocketException) {
             connectionState = ConnectionState.DISCONNECTED
-            if (connectionState == ConnectionState.CONNECTED)
-            {
+            if (connectionState == ConnectionState.CONNECTED) {
                 webSocketClosedEvent?.let {
-                    it (
+                    it(
                             WebSocketClosedEvent(
                                     false,
                                     StatusCode.CLOSE_ABNORMAL.code,
@@ -151,7 +142,7 @@ class WebSocket(
                  *  Now that we've reached this, let's close the connection cleanly.
                  */
                 webSocketClosedEvent?.let {
-                    it (
+                    it(
                             WebSocketClosedEvent(
                                     true,
                                     closeStatusCode!!,
@@ -166,11 +157,7 @@ class WebSocket(
 
     private fun handleTextFrame(payloadData: ByteArray)
     {
-        var msg = ""
-        payloadData.forEach { byte ->
-            msg += byte.toChar()
-        }
-        messageReceivedEvent?.let { it(MessageReceivedEvent(msg)) }
+        messageReceivedEvent?.let { it(MessageReceivedEvent(String(payloadData), payloadData)) }
     }
 
     @ExperimentalUnsignedTypes
@@ -201,8 +188,8 @@ class WebSocket(
     {
         val line = input.readLine()
         if (line == "" || line == null) {
-            connectedEvent?.let { it() }
             connectionState = ConnectionState.CONNECTED
+            connectedEvent?.let { it() }
             return
         }
         printVerbose(line)
@@ -233,11 +220,12 @@ class WebSocket(
         frameDataFragments.write(payloadData)
         if (FIN)
         {
+            val frameDataFragmentsByteArray = frameDataFragments.toByteArray()
             var message = ""
-            frameDataFragments.toByteArray().forEach { byte ->
+            frameDataFragmentsByteArray.forEach { byte ->
                 message += byte.toChar()
             }
-            messageReceivedEvent?.let { it(MessageReceivedEvent(message)) }
+            messageReceivedEvent?.let { it(MessageReceivedEvent(message, frameDataFragmentsByteArray)) }
             frameDataFragments.close()
         }
     }

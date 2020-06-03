@@ -31,22 +31,6 @@ fun createOpeningHandshake(host: String, path: String = "/", port: Int = 80, pro
     return handshake
 }
 
-fun swap(value: Int): Int {
-    val b1 = value shr 0 and 0xff
-    val b2 = value shr 8 and 0xff
-    val b3 = value shr 16 and 0xff
-    val b4 = value shr 24 and 0xff
-    return b1 shl 24 or (b2 shl 16) or (b3 shl 8) or (b4 shl 0)
-}
-
-fun intToBytes(value: Int): ByteArray {
-    val buffer = ByteBuffer.allocate(4)
-    buffer.order(ByteOrder.BIG_ENDIAN)
-    buffer.putInt(value)
-    buffer.flip()
-    return buffer.array()
-}
-
 fun bytesToLong(bytes: ByteArray): Long {
     val buffer = ByteBuffer.allocate(java.lang.Long.BYTES)
     buffer.put(bytes)
